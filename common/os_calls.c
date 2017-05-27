@@ -2233,6 +2233,26 @@ g_file_exist(const char *filename)
 #endif
 }
 
+/* returns -1 on error, 1 on sock file, 0 on others */
+int
+g_file_is_sck(const char *filename)
+{
+#if defined(_WIN32)
+    return 0;
+#else
+    struct stat sb;
+
+    memset(&sb, 0, sizeof(sb));
+    if(stat(filename, &sb) != 0)
+    {
+        return -1;
+    }
+    if(S_ISSOCK(sb.st_mode)) return 1;
+
+    return 0;
+#endif
+}
+
 /*****************************************************************************/
 /* returns boolean, non zero if the directory exists */
 int

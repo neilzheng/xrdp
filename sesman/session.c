@@ -37,6 +37,8 @@
 #include <sys/prctl.h>
 #endif
 
+#include <errno.h>
+
 #include "sesman.h"
 #include "libscp_types.h"
 #include "xauth.h"
@@ -156,6 +158,25 @@ session_get_bydata(const char *name, int width, int height, int bpp, int type,
     return 0;
 }
 
+static int
+is_sck_busy(const char *filename)
+{
+    int sck;
+    if(!g_file_exist(filename)) return 0;
+    if(!g_file_is_sck(filename)) return 1;
+    if((sck = g_sck_local_socket()) == -1)
+    {
+        return 1;
+    }
+    if(g_sck_local_connect(sck, filename) == 0)
+    {
+        g_sck_close(sck);
+        return 1;
+    }
+    g_sck_close(sck);
+    return errno==ECONNREFUSED?0:1;
+}
+
 /******************************************************************************/
 /**
  *
@@ -172,12 +193,12 @@ x_server_running_check_ports(int display)
     int sck;
 
     g_sprintf(text, "/tmp/.X11-unix/X%d", display);
-    x_running = g_file_exist(text);
+    x_running = is_sck_busy(text);
 
     if (!x_running)
     {
         g_sprintf(text, "/tmp/.X%d-lock", display);
-        x_running = g_file_exist(text);
+        x_running = is_sck_busy(text);
     }
 
     if (!x_running) /* check 59xx */
@@ -213,31 +234,31 @@ x_server_running_check_ports(int display)
     if (!x_running)
     {
         g_sprintf(text, XRDP_CHANSRV_STR, display);
-        x_running = g_file_exist(text);
+        x_running = is_sck_busy(text);
     }
 
     if (!x_running)
     {
         g_sprintf(text, CHANSRV_PORT_OUT_STR, display);
-        x_running = g_file_exist(text);
+        x_running = is_sck_busy(text);
     }
 
     if (!x_running)
     {
         g_sprintf(text, CHANSRV_PORT_IN_STR, display);
-        x_running = g_file_exist(text);
+        x_running = is_sck_busy(text);
     }
 
     if (!x_running)
     {
         g_sprintf(text, CHANSRV_API_STR, display);
-        x_running = g_file_exist(text);
+        x_running = is_sck_busy(text);
     }
 
     if (!x_running)
     {
         g_sprintf(text, XRDP_X11RDP_STR, display);
-        x_running = g_file_exist(text);
+        x_running = is_sck_busy(text);
     }
 
     return x_running;
